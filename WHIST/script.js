@@ -482,7 +482,7 @@ function renderActiveGame() {
     html.push('<h3 class="muted">Adaugă mână</h3>');
     html.push('<div class="form-section">');
     html.push(`<div style="margin-bottom:10px;"><strong>Cărți:</strong> ${dealNum} ${dealNum===8? '(fără atu)' : ''}</div>`);
-    html.push('<div id="dealFormInner" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">');
+    html.push('<div id="dealFormInner" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">');
     
     // Reorder players starting from the one after the dealer
     const n = activeGame.players.length;
@@ -495,8 +495,8 @@ function renderActiveGame() {
       html.push(`<div class="player-input" style="margin-bottom: 0;">
         <label>${escapeHtml(name)}</label>
         <div class="flex-gap">
-          <input type="number" min="0" max="${dealNum}" data-input="bid_${p.id}" placeholder="Licitație" />
-          <input type="number" min="0" max="${dealNum}" data-input="tricks_${p.id}" placeholder="Levate" />
+          <input type="number" min="0" max="${dealNum}" data-input="bid_${p.id}" placeholder="Licitație" style="width:100%;"/>
+          <input type="number" min="0" max="${dealNum}" data-input="tricks_${p.id}" placeholder="Levate" style="width:100%;"/>
         </div>
       </div>`);
     }
@@ -606,6 +606,27 @@ function undoRound(){
   saveOrUpdateGame(activeGame);
   renderActiveGame();
   renderHistory();
+
+  // Afișează notificare și derulează la partea de sus
+  const notification = document.createElement('div');
+  notification.textContent = 'Ultima mână a fost anulată!';
+  notification.style.position = 'fixed';
+  notification.style.top = '20px';
+  notification.style.left = '50%';
+  notification.style.transform = 'translateX(-50%)';
+  notification.style.backgroundColor = '#ef4444';
+  notification.style.color = '#fff';
+  notification.style.padding = '15px 30px';
+  notification.style.fontSize = '24px';
+  notification.style.fontWeight = 'bold';
+  notification.style.borderRadius = '8px';
+  notification.style.zIndex = '9999';
+  notification.style.boxShadow = '0 4px 15px rgba(0,0,0,0.5)';
+  document.body.appendChild(notification);
+  
+  setTimeout(() => {
+    notification.remove();
+  }, 3000);
 }
 
 // ==================== SAVE/UPDATE GAME ====================

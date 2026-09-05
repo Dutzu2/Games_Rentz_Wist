@@ -114,8 +114,21 @@ footer { margin-top: 10px; color: var(--muted); font-size: 13px; text-align: cen
 }
 
 /* Data Entry Bottom Bar */
-.data-entry-bottom-bar { flex-shrink: 0; background: var(--card); border-radius: 16px; padding: 20px; margin-top: 10px; box-shadow: 0 -4px 20px rgba(0,0,0,0.3); overflow-y: auto; max-height: 40vh; }
-.roundChoice { margin: 6px; padding: 12px 20px; font-size: 16px; border-radius: 12px; }
+.data-entry-bottom-bar { flex-shrink: 0; background: var(--card); border-radius: 16px; padding: 30px; margin-top: 10px; box-shadow: 0 -4px 20px rgba(0,0,0,0.3); overflow-y: auto; max-height: 60vh; }
+.data-entry-bottom-bar h3 { font-size: 60px; margin-top: 0; margin-bottom: 25px; }
+.data-entry-bottom-bar .form-section { padding: 30px; }
+.data-entry-bottom-bar label { font-size: 48px; margin-bottom: 12px; }
+.data-entry-bottom-bar input[type="number"], 
+.data-entry-bottom-bar select { font-size: 56px; padding: 20px; height: auto; }
+.data-entry-bottom-bar button { font-size: 56px; padding: 25px 50px; }
+.data-entry-bottom-bar .small { font-size: 40px; padding: 20px 30px; }
+.data-entry-bottom-bar input[type="checkbox"], 
+.data-entry-bottom-bar input[type="radio"] { width: 48px; height: 48px; cursor: pointer; margin-right: 16px; }
+.data-entry-bottom-bar .player-input { padding: 25px; }
+.data-entry-bottom-bar .error-text { font-size: 40px; }
+.data-entry-bottom-bar .muted { font-size: 48px; }
+.data-entry-bottom-bar .form-section > div { font-size: 48px; }
+.roundChoice { margin: 12px; padding: 24px 40px; font-size: 60px; border-radius: 16px; }
 
 /* Modals */
 .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; }

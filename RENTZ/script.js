@@ -808,14 +808,17 @@ function undoRound(){
   const notification = document.createElement('div');
   notification.textContent = 'Ultima rundă a fost anulată!';
   notification.style.position = 'fixed';
-  notification.style.top = '10px';
+  notification.style.top = '20px';
   notification.style.left = '50%';
   notification.style.transform = 'translateX(-50%)';
-  notification.style.backgroundColor = '#4caf50';
+  notification.style.backgroundColor = '#ef4444';
   notification.style.color = '#fff';
-  notification.style.padding = '10px 20px';
-  notification.style.borderRadius = '4px';
+  notification.style.padding = '15px 30px';
+  notification.style.fontSize = '24px';
+  notification.style.fontWeight = 'bold';
+  notification.style.borderRadius = '8px';
   notification.style.zIndex = '9999';
+  notification.style.boxShadow = '0 4px 15px rgba(0,0,0,0.5)';
   document.body.appendChild(notification);
   
   setTimeout(() => {
@@ -927,11 +930,11 @@ function renderRentzRoundForm(selectedType){
     activeGame.players.forEach(p=>{
       container.innerHTML += `<div class="player-input" style="margin-bottom:0;">
         <label>${playersMap[p.id].name}</label>
-        <div class="flex-gap align-center" style="flex-wrap:wrap; margin-top:8px;">
-          <input type="number" data-input="romburi_${p.id}" placeholder="Romburi" style="width:70px; margin:0;"/>
-          <input type="number" data-input="maini_${p.id}" placeholder="Mâini" style="width:70px; margin:0;"/>
-          <input type="number" data-input="dame_${p.id}" placeholder="Dame" style="width:70px; margin:0;"/>
-          <label style="margin:0; display:flex; align-items:center; gap:4px;"><input type="radio" name="popa_tot" data-input="popa_${p.id}" value="${p.id}" id="popa_${p.id}"/> Popa</label>
+        <div class="flex-gap align-center" style="flex-wrap:wrap; margin-top:16px;">
+          <input type="number" data-input="romburi_${p.id}" placeholder="Romburi" style="width:220px; margin:0;"/>
+          <input type="number" data-input="maini_${p.id}" placeholder="Mâini" style="width:220px; margin:0;"/>
+          <input type="number" data-input="dame_${p.id}" placeholder="Dame" style="width:220px; margin:0;"/>
+          <label style="margin:0; display:flex; align-items:center; gap:16px;"><input type="radio" name="popa_tot" data-input="popa_${p.id}" value="${p.id}" id="popa_${p.id}"/> Popa</label>
         </div>
       </div>`;
     });
