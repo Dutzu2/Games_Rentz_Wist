@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ro">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <script src="script.js" defer></script>
+  <link href="style.css" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Pacifico&display=swap" rel="stylesheet">
+  <title>Scoruri Rentz & Whist</title>
+</head>
+<body>
+  <div class="app">
+    <div class="card">
+      <div class="topbar">
+        <h2>Jucători</h2>
+        <div class="pill">Salvat local</div>
+      </div>
+
+      <div>
+        <label>Nume jucător</label>
+        <div style="display:flex;gap:8px">
+          <input id="newPlayerName" type="text" placeholder="Adaugă nume" />
+          <button id="addPlayerBtn">Adaugă</button>
+        </div>
+      </div>
+
+      <div id="playersList" style="margin-top:12px;max-height:360px;overflow:auto"></div>
+
+      <div class="controls">
+        <button id="exportBtn" class="small">Export JSON</button>
+        <button id="importBtn" class="small">Import JSON</button>
+      </div>
+
+      <div style="margin-top:10px" class="muted">Poți edita sau șterge jucători. Datele (jucători & jocuri) sunt păstrate în localStorage.</div>
+    </div>
+
+    <div class="card game-area">
+      <h2>Creare joc</h2>
+      <div style="display:flex;gap:12px;align-items:center">
+        <div style="flex:1">
+            <div class="form-section" background="rgba(255,255,255,0.05)" style="padding:8px; border-radius:8px; display:flex; flex-direction:column; gap:6px">
+          <label>Tip joc</label>
+          <select id="gameType">
+            <option value="rentz">Rentz</option>
+          </select>
+        </div>
+        </div>
+        <div style="flex:2">
+          <label>Jucători (selectează minim 3)</label>
+        <div id="playersCheckboxes" style="border:1px solid #ccc; padding:6px; max-height:200px; overflow:auto;"></div>
+        </div>
+        
+      </div>
+
+      <div style="display:flex;gap:8px">
+        <button id="createGameBtn">Creează joc</button>
+        <button id="loadLastGameBtn" class="small">Încarcă ultimul</button>
+        <button id="endGameBtn" class="small danger" style="margin-left:auto">Termină joc curent</button>
+      </div>
+
+      <div id="activeGame" style="margin-top:12px">
+      </div>
+
+      <div id="history" style="margin-top:6px"></div>
+
+      <footer class="nopointer"> Made with <a id="inima" style="font-size: medium;">&lt3</a> by <a id="DTZ">DTZ</a></footer>
+    </div>
+  </div>
+
+
+</body>
+</html>

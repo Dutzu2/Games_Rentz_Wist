@@ -1,0 +1,21 @@
+{
+  "name": "Games",
+  "version": "1.0.0",
+  "description": "A collection of card games including Whist and Rentz.",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "node src/main.js",
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "dependencies": {
+    "better-sqlite3": "^7.4.4"
+  },
+  "devDependencies": {},
+  "keywords": [
+    "card games",
+    "whist",
+    "rentz"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}

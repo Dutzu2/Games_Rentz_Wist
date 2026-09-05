@@ -1,0 +1,95 @@
+    :root{--bg:#0f1724;--card:#0b1220;--accent:#0ea5a4;--muted:#94a3b8;--glass:rgba(255,255,255,0.03)}
+    html,body{height:100%;margin:0;font-family:Inter, system-ui, sans-serif;background:linear-gradient(180deg,#071021 0%, #0b1630 100%);color:#e6eef8}
+    .app{max-width:1100px;margin:28px auto;padding:20px;display:grid;grid-template-columns:320px 1fr;gap:20px}
+    .card{background:var(--card);padding:14px;border-radius:12px;box-shadow:0 6px 18px rgba(2,6,23,0.6)}
+    h2{margin:0 0 10px 0;font-size:18px}
+    label{display:block;font-size:13px;color:var(--muted);margin-top:8px}
+    input[type=text],select{width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:var(--glass);color:inherit}
+    button{background:var(--accent);border:none;padding:8px 10px;border-radius:8px;color:#042024;cursor:pointer;margin-top:10px}
+    .player{display:flex;align-items:center;justify-content:space-between;padding:8px;border-radius:8px;margin-bottom:8px;background:linear-gradient(90deg, rgba(255,255,255,0.02), transparent)}
+    .player .name{font-weight:600}
+    .muted{color:var(--muted);font-size:13px}
+    .controls{display:flex;gap:8px;margin-top:10px}
+    .game-area{display:flex;flex-direction:column;gap:12px}
+    .scoreboard{display:grid;grid-template-columns:1fr;gap:8px}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:8px;text-align:left;border-bottom:1px dashed rgba(255,255,255,0.03)}
+    .row-inputs{display:flex;gap:8px}
+    .small{padding:6px 8px;font-size:13px}
+    .danger{background:#ef4444;color:white}
+    .success{background:#22c55e;color:white}
+    .topbar{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:10px}
+    .flex{display:flex;gap:8px;align-items:center}
+    .pill{background:rgba(255,255,255,0.03);padding:6px 8px;border-radius:999px;font-size:13px}
+    footer{margin-top:10px;color:var(--muted);font-size:13px;text-align:center}
+/* Container general pentru formular */
+.form-section {
+  margin: 10px 0;
+  padding: 10px;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 8px;
+  background-color: #1e1e1e; /* fundal închis */
+  color: #fff; /* text alb pentru vizibilitate */
+}
+
+/* Etichete */
+.form-section label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: #fff; /* alb */
+}
+
+/* Select și input numeric */
+.form-section select,
+.form-section input[type="number"] {
+  width: 100%;
+  padding: 6px;
+  margin-bottom: 10px;
+  border: 1px solid #888;
+  border-radius: 6px;
+  background-color: #333; /* input închis */
+  color: #fff; /* text alb */
+  font-size: 14px;
+}
+
+/* Card pentru fiecare jucător */
+.player-input {
+  margin-bottom: 12px;
+  padding: 8px;
+  border: 1px dashed rgba(255,255,255,0.2);
+  border-radius: 6px;
+  background-color: #2a2a2a;
+  color: #fff;
+}
+#DTZ{
+    font-family: "Pacifico", cursive;
+    color: #94a3b8;
+    font-weight: 600;
+    transition: color 0.3s ease, transform 0.3s ease;
+    transform: scale(1);
+}
+
+#DTZ:hover {
+    cursor: url("inima.png"), default;
+    text-decoration: none;
+    color: rgb(16, 201, 145);
+    transform: scale(1.03);
+}
+#inima{
+    text-decoration: none;
+    color: #94a3b8;
+    font-weight: 600;
+    transition: color 0.3s ease, transform 0.3s ease;
+}
+#inima:hover {
+    cursor: url("inima.png"), default;
+    text-decoration: none;
+    color: rgb(184, 11, 5);
+    transform: scale(1.03);
+}
+
+.nopointer
+{
+    cursor: default !important;
+}
