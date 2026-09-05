@@ -5,11 +5,12 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <script src="script.js" defer></script>
   <link href="style.css" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=Pacifico&display=swap" rel="stylesheet">
-  <title>Scoruri Rentz & Whist</title>
+  <link href="https://fonts.googleapis.com/css2?family=Pacifico&display=swap" rel="stylesheet">
+  <title>Scoruri Rentz</title>
 </head>
 <body>
-  <div class="app">
+  <!-- ADMIN VIEW -->
+  <div id="adminView" class="app admin-layout">
     <div class="card">
       <div class="topbar">
         <h2>Jucători</h2>
@@ -18,55 +19,98 @@
 
       <div>
         <label>Nume jucător</label>
-        <div style="display:flex;gap:8px">
+        <div class="flex-gap">
           <input id="newPlayerName" type="text" placeholder="Adaugă nume" />
           <button id="addPlayerBtn">Adaugă</button>
         </div>
+        <div id="playerNameError" class="error-text" style="display:none;">Scrie un nume!</div>
       </div>
 
-      <div id="playersList" style="margin-top:12px;max-height:360px;overflow:auto"></div>
+      <div id="playersList" class="scrollable-list"></div>
 
       <div class="controls">
         <button id="exportBtn" class="small">Export JSON</button>
         <button id="importBtn" class="small">Import JSON</button>
       </div>
 
-      <div style="margin-top:10px" class="muted">Poți edita sau șterge jucători. Datele (jucători & jocuri) sunt păstrate în localStorage.</div>
+      <div class="muted mt-10">Poți edita sau șterge jucători. Datele (jucători & jocuri) sunt păstrate în localStorage.</div>
     </div>
 
     <div class="card game-area">
-      <h2>Creare joc</h2>
-      <div style="display:flex;gap:12px;align-items:center">
-        <div style="flex:1">
-            <div class="form-section" background="rgba(255,255,255,0.05)" style="padding:8px; border-radius:8px; display:flex; flex-direction:column; gap:6px">
-          <label>Tip joc</label>
-          <select id="gameType">
-            <option value="rentz">Rentz</option>
-          </select>
-        </div>
-        </div>
-        <div style="flex:2">
-          <label>Jucători (selectează minim 3)</label>
-        <div id="playersCheckboxes" style="border:1px solid #ccc; padding:6px; max-height:200px; overflow:auto;"></div>
-        </div>
-        
+      <div class="topbar">
+        <h2>Creare joc</h2>
+        <button id="goToGameBtn" class="small success" style="display:none;">Înapoi la joc</button>
       </div>
+      <div class="flex-gap align-center">
+        <div class="flex-1">
+          <div class="form-section">
+            <label>Tip joc</label>
+            <select id="gameType">
+              <option value="rentz">Rentz</option>
+            </select>
+          </div>
+        </div>
+        <div class="flex-2">
+          <label>Jucători (selectează minim 3)</label>
+          <div id="playersCheckboxes" class="checkbox-list"></div>
+        </div>
+      </div>
+      <div id="createGameError" class="error-text" style="display:none;">Selectează cel puțin 3 jucători</div>
 
-      <div style="display:flex;gap:8px">
+      <div class="flex-gap mt-10">
         <button id="createGameBtn">Creează joc</button>
         <button id="loadLastGameBtn" class="small">Încarcă ultimul</button>
-        <button id="endGameBtn" class="small danger" style="margin-left:auto">Termină joc curent</button>
+        <button id="endGameBtn" class="small danger ml-auto">Termină joc curent</button>
       </div>
 
-      <div id="activeGame" style="margin-top:12px">
-      </div>
+      <div id="history" class="mt-10"></div>
 
-      <div id="history" style="margin-top:6px"></div>
-
-      <footer class="nopointer"> Made with <a id="inima" style="font-size: medium;">&lt3</a> by <a id="DTZ">DTZ</a></footer>
+      <footer class="nopointer"> Made with <a id="inima">&lt;3</a> by <a id="DTZ">DTZ</a></footer>
     </div>
   </div>
 
+  <!-- GAME VIEW -->
+  <div id="gameView" class="game-layout" style="display: none;">
+    <div class="scoreboard-panel">
+      <div class="scoreboard-header">
+        <div class="game-title">Rentz</div>
+        <div id="turnQueue" class="turn-queue" style="display:none;"></div>
+        <button id="goToAdminBtn" class="icon-btn" title="Administrare">⚙️ Admin</button>
+      </div>
+      <div id="scoreboardList" class="scoreboard-list">
+        <!-- Player cards will be injected here -->
+      </div>
+    </div>
+    
+    <div class="data-entry-bottom-bar">
+      <div id="activeGame">
+        <!-- Data entry form will be injected here -->
+      </div>
+    </div>
+  </div>
 
+  <!-- INLINE CONFIRM MODAL -->
+  <div id="confirmModal" class="modal-overlay" style="display:none;">
+    <div class="modal-content">
+      <p id="confirmMessage">Ești sigur?</p>
+      <div class="flex-gap mt-10">
+        <button id="confirmYesBtn" class="danger">Da</button>
+        <button id="confirmNoBtn" class="secondary">Nu</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- INLINE PROMPT MODAL -->
+  <div id="promptModal" class="modal-overlay" style="display:none;">
+    <div class="modal-content">
+      <p id="promptMessage">Introdu valoarea:</p>
+      <input type="text" id="promptInput" />
+      <div id="promptError" class="error-text" style="display:none;">Valoare invalidă</div>
+      <div class="flex-gap mt-10">
+        <button id="promptYesBtn" class="success">OK</button>
+        <button id="promptNoBtn" class="secondary">Anulează</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

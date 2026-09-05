@@ -5,7 +5,7 @@ const RENTZ_ROUNDS = [
   { id: 'romburi', label: 'Romburi (-20 fiecare)' },
   { id: 'totplus', label: 'Totale plus' },
   { id: 'totminus', label: 'Totale minus' },
-  { id: 'rentz', label: 'Rentz (+/- în funcție de poziție)' }
+  { id: 'rentz', label: 'Rentz' }
 ];
 
 // ==================== LOCAL STORAGE KEYS ====================
@@ -17,6 +17,38 @@ let players = load(KEY_PLAYERS, []);
 let games = load(KEY_GAMES, []);
 let activeGame = null;
 let selectedOrder = [];
+let showLoserJoke = false;
+let showLastRoundScore = false;
+
+document.addEventListener('keydown', (e) => {
+  if (e.key.toLowerCase() === 'l' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT') {
+    if (!showLoserJoke) {
+      showLoserJoke = true;
+      document.querySelectorAll('.loser-joke-container').forEach(el => el.classList.add('active'));
+    }
+  }
+  if (e.key.toLowerCase() === 'k' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT') {
+    if (!showLastRoundScore) {
+      showLastRoundScore = true;
+      document.querySelectorAll('.last-round-container').forEach(el => el.classList.add('active'));
+    }
+  }
+});
+
+document.addEventListener('keyup', (e) => {
+  if (e.key.toLowerCase() === 'l') {
+    if (showLoserJoke) {
+      showLoserJoke = false;
+      document.querySelectorAll('.loser-joke-container').forEach(el => el.classList.remove('active'));
+    }
+  }
+  if (e.key.toLowerCase() === 'k') {
+    if (showLastRoundScore) {
+      showLastRoundScore = false;
+      document.querySelectorAll('.last-round-container').forEach(el => el.classList.remove('active'));
+    }
+  }
+});
 
 // normalize older / imported game objects so `available` și `score` sunt numerice
 function ensurePlayerAvailable(player, defaultCount){
@@ -36,20 +68,48 @@ function ensurePlayerAvailable(player, defaultCount){
 function normalizeGamesList(list){
   if(!Array.isArray(list)) return [];
   return list.map(g=>{
-    if(!g || typeof g !== 'object') g = { id: uid('g'), players: [], rounds: [] };
+    if(!g || typeof g !== 'object') g = { id: uid('g'), type: 'rentz', players: [], rounds: [] };
     if(!Array.isArray(g.players)) g.players = [];
-    // preserve per-player availability default (1 each)
-    g.players.forEach(p=> ensurePlayerAvailable(p));
     if(!Array.isArray(g.rounds)) g.rounds = [];
+    // `available` e specific Rentz-ului: nu-l injecta în jocurile de Whist,
+    // care stau în aceeași cheie de localStorage.
+    if(g.type === 'rentz') g.players.forEach(p=> ensurePlayerAvailable(p));
     return g;
   });
 }
 
-// apply normalization right after load
+// ==================== PERSISTENȚĂ ÎNTRE FILE ====================
+// Rentz și Whist împart aceleași chei. Dacă o filă scrie întregul array pe care
+// l-a citit la încărcare, șterge tot ce a salvat între timp cealaltă filă — jocuri
+// care „dispar din senin". De aceea fiecare scriere recitește întâi storage-ul și
+// modifică doar înregistrarea vizată.
+function persistGame(g){
+  const stored = normalizeGamesList(load(KEY_GAMES, []));
+  const idx = stored.findIndex(x => x && x.id === g.id);
+  if(idx >= 0) stored[idx] = g; else stored.push(g);
+  games = stored;
+  save(KEY_GAMES, games);
+}
+function persistPlayers(mutate){
+  const stored = load(KEY_PLAYERS, []);
+  const fresh = Array.isArray(stored)
+    ? stored.map(p => ({ id: p.id || uid('p'), name: p.name || 'Unknown' }))
+    : [];
+  players = mutate(fresh);
+  save(KEY_PLAYERS, players);
+}
+function reloadFromStorage(){
+  players = (load(KEY_PLAYERS, []) || []).map(p => ({ id: p.id || uid('p'), name: p.name || 'Unknown' }));
+  games = normalizeGamesList(load(KEY_GAMES, []));
+  if(activeGame){
+    const fresh = games.find(g => g.id === activeGame.id);
+    activeGame = fresh || null;
+  }
+}
+
+// apply normalization right after load (fără a suprascrie ce a scris altă filă)
 players = Array.isArray(players) ? players.map(p => ({ id: p.id || uid('p'), name: p.name || 'Unknown' })) : [];
 games = normalizeGamesList(games);
-save(KEY_PLAYERS, players);
-save(KEY_GAMES, games);
 
 // ==================== DOM ELEMENTS ====================
 const playersList = document.getElementById('playersList');
@@ -81,6 +141,70 @@ function downloadJSON(obj, filename){
 }
 function getPlayersMap(){ return players.reduce((acc,p)=>{ acc[p.id]=p; return acc; },{}); }
 
+// ==================== CUSTOM MODALS ====================
+function customConfirm(message, callback) {
+  const modal = document.getElementById('confirmModal');
+  document.getElementById('confirmMessage').innerText = message;
+  modal.style.display = 'flex';
+  
+  const yesBtn = document.getElementById('confirmYesBtn');
+  const noBtn = document.getElementById('confirmNoBtn');
+  
+  const cleanup = () => {
+    modal.style.display = 'none';
+    yesBtn.removeEventListener('click', onYes);
+    noBtn.removeEventListener('click', onNo);
+  };
+  
+  const onYes = () => { cleanup(); callback(true); };
+  const onNo = () => { cleanup(); callback(false); };
+  
+  yesBtn.addEventListener('click', onYes);
+  noBtn.addEventListener('click', onNo);
+}
+
+function customPrompt(message, defaultValue, callback) {
+  const modal = document.getElementById('promptModal');
+  document.getElementById('promptMessage').innerText = message;
+  const input = document.getElementById('promptInput');
+  input.value = defaultValue || '';
+  document.getElementById('promptError').style.display = 'none';
+  modal.style.display = 'flex';
+  input.focus();
+  
+  const yesBtn = document.getElementById('promptYesBtn');
+  const noBtn = document.getElementById('promptNoBtn');
+  
+  const cleanup = () => {
+    modal.style.display = 'none';
+    yesBtn.removeEventListener('click', onYes);
+    noBtn.removeEventListener('click', onNo);
+  };
+  
+  const onYes = () => { 
+    const val = input.value.trim();
+    if (!val) {
+      document.getElementById('promptError').style.display = 'block';
+      return;
+    }
+    cleanup(); 
+    callback(val); 
+  };
+  const onNo = () => { cleanup(); callback(null); };
+  
+  yesBtn.addEventListener('click', onYes);
+  noBtn.addEventListener('click', onNo);
+}
+
+function showError(elementId, message) {
+  const el = document.getElementById(elementId);
+  if (el) {
+    el.innerText = message;
+    el.style.display = 'block';
+    setTimeout(() => { el.style.display = 'none'; }, 3000);
+  }
+}
+
 // ==================== RENDER PLAYERS ====================
 function renderPlayers() {
   playersList.innerHTML = '';
@@ -96,7 +220,7 @@ function renderPlayers() {
         <div class="name">${escapeHtml(p.name)}</div>
         <div class="muted">id: ${p.id}</div>
       </div>
-      <div style="display:flex;gap:8px">
+      <div class="flex-gap">
         <button class="small" data-edit="${p.id}">Editează</button>
         <button class="small danger" data-del="${p.id}">Șterge</button>
       </div>`;
@@ -106,15 +230,21 @@ function renderPlayers() {
   // events
   playersList.querySelectorAll('[data-del]').forEach(btn=> btn.addEventListener('click', e=>{
     const id = e.target.getAttribute('data-del');
-    if(!confirm('Ștergi jucătorul?')) return;
-    players = players.filter(x=>x.id!==id);
-    save(KEY_PLAYERS, players); renderPlayers(); renderPlayersCheckboxes();
+    customConfirm('Ștergi jucătorul?', (yes) => {
+      if(!yes) return;
+      persistPlayers(list => list.filter(x=>x.id!==id));
+      renderPlayers(); renderPlayersCheckboxes();
+    });
   }));
   playersList.querySelectorAll('[data-edit]').forEach(btn=> btn.addEventListener('click', e=>{
     const id = e.target.getAttribute('data-edit');
     const p = players.find(x=>x.id===id);
-    const newName = prompt('Schimbă numele jucătorului', p.name);
-    if(newName && newName.trim()){ p.name=newName.trim(); save(KEY_PLAYERS, players); renderPlayers(); renderPlayersCheckboxes(); }
+    customPrompt('Schimbă numele jucătorului', p.name, (newName) => {
+      if(newName && newName.trim()){
+        persistPlayers(list => list.map(x => x.id===id ? { ...x, name: newName.trim() } : x));
+        renderPlayers(); renderPlayersCheckboxes();
+      }
+    });
   }));
 }
 
@@ -134,7 +264,7 @@ function renderPlayersCheckboxes() {
     const order = selectedOrder.includes(p.id) ? selectedOrder.indexOf(p.id) + 1 : '';
 
     div.innerHTML = `
-      <label style="display:flex; align-items:center; gap:8px; cursor:pointer">
+      <label class="flex-gap align-center" style="cursor:pointer">
         <input type="checkbox" value="${p.id}" id="chk_${p.id}" ${checked} />
         <span>${playersMap[p.id].name} ${order ? '(' + order + ')' : ''}</span>
       </label>
@@ -155,18 +285,17 @@ function renderPlayersCheckboxes() {
 // ==================== ADD PLAYER ====================
 addPlayerBtn.addEventListener('click', ()=>{
   const name = newPlayerName.value.trim();
-  if(!name) return alert('Scrie un nume!');
-  players.push({ id: uid('p'), name });
-  save(KEY_PLAYERS, players);
+  if(!name) return showError('playerNameError', 'Scrie un nume!');
+  persistPlayers(list => list.concat([{ id: uid('p'), name }]));
   newPlayerName.value='';
   renderPlayers(); renderPlayersCheckboxes();
 });
 
 // ==================== GAME FUNCTIONS ====================
 createGameBtn.addEventListener('click', ()=> {
-  if(selectedOrder.length < 3) return alert('Selectează cel puțin 3 jucători');
+  if(selectedOrder.length < 3) return showError('createGameError', 'Selectează cel puțin 3 jucători');
   const gType = gameTypeEl.value;
-  if(gType !== 'rentz') return alert('Acest fișier suportă doar jocul Rentz!');
+  if(gType !== 'rentz') return showError('createGameError', 'Acest fișier suportă doar jocul Rentz!');
   // calculează câte pachete sunt necesare pentru joc (8 cărți per jucător)
   const totalCardsNeededForGame = 8 * selectedOrder.length;
   const decksForGame = Math.max(1, Math.ceil(totalCardsNeededForGame / 52));
@@ -184,106 +313,275 @@ createGameBtn.addEventListener('click', ()=> {
     currentPlayerIndex: 0,
     selectedRoundType: null
   };
-  games.push(g); save(KEY_GAMES, games);
+  persistGame(g);
   activeGame = g; renderActiveGame(); renderHistory();
   selectedOrder = []; renderPlayersCheckboxes();
 });
 
 loadLastGameBtn.addEventListener('click', ()=>{
-  if(games.length===0) return alert('Nu există jocuri salvate');
+  if(games.length===0) return showError('createGameError', 'Nu există jocuri salvate');
   activeGame = games[games.length-1]; renderActiveGame();
 });
 
 endGameBtn.addEventListener('click', ()=>{
-  if(!activeGame) return alert('Nu e niciun joc activ');
-  if(!confirm('Finalizezi jocul curent?')) return;
-  activeGame=null; renderActiveGame();
+  if(!activeGame) return;
+  customConfirm('Finalizezi jocul curent?', (yes) => {
+    if(!yes) return;
+    activeGame=null; renderActiveGame();
+  });
+});
+
+// ==================== VIEW SWITCHING ====================
+document.getElementById('goToAdminBtn').addEventListener('click', () => {
+  document.getElementById('adminView').style.display = 'grid';
+  document.getElementById('gameView').style.display = 'none';
+});
+document.getElementById('goToGameBtn').addEventListener('click', () => {
+  document.getElementById('adminView').style.display = 'none';
+  document.getElementById('gameView').style.display = 'flex';
 });
 
 // ==================== RENDER ACTIVE GAME ====================
 function renderActiveGame(){
-  activeGameEl.innerHTML='';
+  const adminView = document.getElementById('adminView');
+  const gameView = document.getElementById('gameView');
+  const goToGameBtn = document.getElementById('goToGameBtn');
+  
   if(!activeGame){ 
-    activeGameEl.innerHTML='<div class="muted">Niciun joc activ. Creează unul.</div>'; 
+    adminView.style.display = 'grid';
+    gameView.style.display = 'none';
+    goToGameBtn.style.display = 'none';
     return; 
   }
+  
+  goToGameBtn.style.display = 'inline-block';
+  
   const playersMap = getPlayersMap();
   const roundsOrder = ['dame','popa','romburi','totplus','totminus','rentz'];
-  const roundsLabels = { dame: "Dame", popa: "Popa", romburi: "Romburi", totplus: "Totale plus", totminus: "Totale minus", rentz: "Rentz" };
+  const roundInitials = { dame: "D", popa: "P", romburi: "R", totplus: "T+", totminus: "T-", rentz: "Rz" };
 
-  const html = [];
-  html.push(`<div style="display:flex;justify-content:space-between;align-items:center">
-    <div><strong>Joc:</strong> ${activeGame.type.toUpperCase()}</div>
-    <div class="muted">id: ${activeGame.id}</div>
-  </div>`);
-
-  // Tabel scoruri + available rounds
-  html.push('<div style="margin-top:8px"><table><thead><tr><th>Jucător</th><th>Scor</th><th>Jocuri</th></tr></thead><tbody>');
-  activeGame.players.forEach(p=>{
-    const name = playersMap[p.id] ? playersMap[p.id].name : 'Unknown';
-    let availStr = '';
-    if(p.available){
-      availStr = roundsOrder.map(rt=>{
-        const count = p.available[rt] || 0;
-        return count > 0 ? roundsLabels[rt] : '';
-      }).filter(letter => letter !== '').join(" | ");
-    }
-    html.push(`<tr data-player="${p.id}">
-      <td>${escapeHtml(name)}</td>
-      <td class="scoreCell">${p.score}</td>
-      <td class="availableCell">${availStr}</td>
-    </tr>`);
+  const isGameOver = activeGame.players.every(p => {
+    return roundsOrder.every(rt => (p.available[rt] || 0) === 0);
   });
-  html.push('</tbody></table></div>');
 
-  // Selectare tip rundă
-  if(!activeGame.selectedRoundType){
-    const currPlayer = activeGame.players[activeGame.currentPlayerIndex];
-    if(!currPlayer){
-      html.push('<div style="margin-top:12px; padding:8px; border:1px solid #ccc; border-radius:4px">');
-      html.push('<div class="muted">Jucător curent invalid.</div>');
-      html.push('</div>');
-      activeGameEl.innerHTML = html.join('');
-      return;
+  const turnQueue = document.getElementById('turnQueue');
+  if (isGameOver) {
+    turnQueue.innerHTML = '<div class="queue-item current">Joc finalizat</div>';
+    turnQueue.style.display = 'flex';
+  } else {
+    const n = activeGame.players.length;
+    const queueHtml = [];
+    
+    for (let i = 0; i < n; i++) {
+      const pIndex = (activeGame.currentPlayerIndex + i) % n;
+      const p = activeGame.players[pIndex];
+      const name = playersMap[p.id] ? playersMap[p.id].name : 'Unknown';
+      
+      if (i === 0) {
+        let label = escapeHtml(name);
+        if (activeGame.selectedRoundType) {
+          const roundLabel = RENTZ_ROUNDS.find(r=>r.id===activeGame.selectedRoundType).label;
+          label += ` <span style="font-size:16px; font-weight:normal; color:#fff; margin-left:8px;">(joacă ${roundLabel})</span>`;
+        }
+        queueHtml.push(`<div class="queue-item current">${label}</div>`);
+      } else {
+        queueHtml.push(`<div class="queue-item">${escapeHtml(name)}</div>`);
+      }
+      
+      if (i < n - 1) {
+        queueHtml.push(`<div class="queue-arrow">➔</div>`);
+      }
     }
-    const hasChoice = RENTZ_ROUNDS.some(r => (currPlayer.available && (Number(currPlayer.available[r.id]) || 0) > 0));
-    html.push('<div style="margin-top:12px; padding:8px; border:1px solid #ccc; border-radius:4px">');
-    html.push(`<h3>${playersMap[currPlayer.id].name}, alege jocul pe care-l joci:</h3>`);
-    if(hasChoice){
-      RENTZ_ROUNDS.forEach(r=>{
-        const availableCount = currPlayer.available[r.id] || 0;
-        if(availableCount > 0){
-          html.push(`<button class="roundChoice" data-round="${r.id}" style="margin-right:8px">
-                       ${roundsLabels[r.id]}
-                     </button>`);
+    
+    turnQueue.innerHTML = queueHtml.join('');
+    turnQueue.style.display = 'flex';
+  }
+
+  // 1. Render Scoreboard
+  const scoreboardList = document.getElementById('scoreboardList');
+  const sortedPlayers = [...activeGame.players].sort((a, b) => b.score - a.score);
+  
+  const currentOrder = sortedPlayers.map(p => p.id).join(',');
+  const orderChanged = scoreboardList.dataset.lastOrder !== currentOrder;
+  scoreboardList.dataset.lastOrder = currentOrder;
+  
+  // Calculate ranks for medals
+  const isGameStart = activeGame.rounds.length === 0;
+  let currentRank = 1;
+  let currentScore = sortedPlayers.length > 0 ? sortedPlayers[0].score : 0;
+  
+  sortedPlayers.forEach((p, index) => {
+    if (p.score < currentScore) {
+      currentRank = index + 1;
+      currentScore = p.score;
+    }
+    p.rank = currentRank;
+  });
+  
+  const oldRects = {};
+  Array.from(scoreboardList.children).forEach(child => {
+    oldRects[child.id] = child.getBoundingClientRect();
+  });
+  
+  scoreboardList.innerHTML = '';
+  
+  const lowestScore = sortedPlayers.length > 0 ? sortedPlayers[sortedPlayers.length - 1].score : null;
+  
+  sortedPlayers.forEach((p, index) => {
+    const name = playersMap[p.id] ? playersMap[p.id].name : 'Unknown';
+    const isCurrent = activeGame.players[activeGame.currentPlayerIndex].id === p.id;
+    
+    let medalClass = '';
+    if (!isGameStart) {
+      if (p.rank === 1) medalClass = 'medal-gold';
+      else if (p.rank === 2) medalClass = 'medal-silver';
+      else if (p.rank === 3) medalClass = 'medal-bronze';
+    }
+    
+    let loserHtml = '';
+    if (p.score === lowestScore && !isGameStart) {
+      const activeClass = showLoserJoke ? 'active' : '';
+      loserHtml = `
+        <div class="loser-joke-container ${activeClass}">
+          <div class="loser-joke-wrapper">
+            <div class="loser-joke">
+              <div class="loser-arrow">⬆</div>
+              Cel mai Ghinionist :(
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    
+    let lastRoundHtml = '';
+    if (activeGame.rounds.length > 0) {
+      const lastRound = activeGame.rounds[activeGame.rounds.length - 1];
+      const lastPts = lastRound.values ? lastRound.values[p.id] : (lastRound.delta ? lastRound.delta[p.id] : 0);
+      
+      if (lastPts !== undefined) {
+        const sign = lastPts > 0 ? '+' : '';
+        const colorClass = lastPts > 0 ? 'positive' : (lastPts < 0 ? 'negative' : 'neutral');
+        const activeClass = showLastRoundScore ? 'active' : '';
+        
+        lastRoundHtml = `
+          <div class="last-round-container ${activeClass}">
+            <div class="last-round-wrapper">
+              <div class="last-round-score ${colorClass}">
+                Ultima rundă: ${sign}${lastPts}
+              </div>
+            </div>
+          </div>
+        `;
+      }
+    }
+    
+    let badgesHtml = roundsOrder.map(rt => {
+      const count = p.available ? (p.available[rt] || 0) : 0;
+      const statusClass = count > 0 ? 'available' : 'played';
+      return `<span class="badge ${statusClass}">${roundInitials[rt]}</span>`;
+    }).join('');
+    
+    const row = document.createElement('div');
+    row.className = `player-card ${medalClass} ${isCurrent ? 'current-turn' : ''}`;
+    row.id = `player-card-${p.id}`;
+    
+    let deltaHtml = '';
+    if (p.lastDelta !== undefined && p.lastDelta !== 0) {
+      const sign = p.lastDelta > 0 ? '+' : '';
+      const deltaClass = p.lastDelta > 0 ? 'positive' : 'negative';
+      deltaHtml = `<div class="delta ${deltaClass} show">${sign}${p.lastDelta}</div>`;
+      delete p.lastDelta;
+    }
+    
+    row.innerHTML = `
+      <div class="player-card-header">
+        <div class="rank">${index + 1}</div>
+        <div class="name">${escapeHtml(name)}</div>
+      </div>
+      <div class="score-container">
+        ${deltaHtml}
+        <div class="score">${p.score}</div>
+      </div>
+      ${lastRoundHtml}
+      ${loserHtml}
+      <div class="games-left">${badgesHtml}</div>
+    `;
+    scoreboardList.appendChild(row);
+  });
+  
+  if (orderChanged) {
+    requestAnimationFrame(() => {
+      Array.from(scoreboardList.children).forEach(child => {
+        const oldRect = oldRects[child.id];
+        if (oldRect) {
+          const newRect = child.getBoundingClientRect();
+          const dx = oldRect.left - newRect.left;
+          const dy = oldRect.top - newRect.top;
+          if (dx !== 0 || dy !== 0) {
+            child.style.transform = `translate(${dx}px, ${dy}px)`;
+            child.style.transition = 'none';
+            requestAnimationFrame(() => {
+              child.style.transform = '';
+              child.style.transition = 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)';
+            });
+          }
         }
       });
-    } else {
-      html.push('<div class="muted">Acest jucător nu are runde disponibile.</div>');
-      html.push('<div style="margin-top:8px"><button id="skipTurnBtn" class="small">Treci la următorul jucător</button></div>');
-    }
-    html.push('</div>');
-    if(activeGame.rounds.length > 0){
-      html.push('<div style="margin-top:8px">');
-      html.push('<button id="undoRoundBtnGlobal" class="small" style="background:#f44336;color:#fff;padding:4px 8px;border:none;border-radius:4px;">Anulează ultima rundă</button>');
-      html.push('</div>');
-    }
+    });
   }
-  else {
-    // Formularul de rundă
-    html.push('<div style="margin-top:10px"><h3 class="muted">Adaugă rundă</h3>');
+
+  // 2. Render Data Entry
+  const activeGameEl = document.getElementById('activeGame');
+  const html = [];
+
+  if (isGameOver) {
+    html.push('<div class="form-section" style="text-align:center;">');
+    html.push('<h2>Clasament Final</h2>');
+    sortedPlayers.forEach((p, i) => {
+      const name = playersMap[p.id] ? playersMap[p.id].name : 'Unknown';
+      html.push(`<div style="font-size:18px; margin:8px 0;">${i+1}. ${escapeHtml(name)} - <strong>${p.score}</strong></div>`);
+    });
+    html.push('<div class="mt-10"><button id="undoRoundBtnGlobal" class="small danger">Anulează ultima rundă</button></div>');
+    html.push('</div>');
+  } else if(!activeGame.selectedRoundType){
+    const currPlayer = activeGame.players[activeGame.currentPlayerIndex];
+    if(!currPlayer){
+      html.push('<div class="muted">Jucător curent invalid.</div>');
+    } else {
+      const hasChoice = RENTZ_ROUNDS.some(r => (currPlayer.available && (Number(currPlayer.available[r.id]) || 0) > 0));
+      html.push(`<h3>${playersMap[currPlayer.id].name}, alege jocul:</h3>`);
+      if(hasChoice){
+        html.push('<div style="display:flex; flex-wrap:wrap; gap:8px;">');
+        RENTZ_ROUNDS.forEach(r=>{
+          const availableCount = currPlayer.available[r.id] || 0;
+          if(availableCount > 0){
+            html.push(`<button class="roundChoice" data-round="${r.id}">${r.label}</button>`);
+          }
+        });
+        html.push('</div>');
+      } else {
+        html.push('<div class="muted">Acest jucător nu are runde disponibile.</div>');
+        html.push('<div class="mt-10"><button id="skipTurnBtn" class="small">Treci la următorul jucător</button></div>');
+      }
+      if(activeGame.rounds.length > 0){
+        html.push('<div class="mt-10">');
+        html.push('<button id="undoRoundBtnGlobal" class="small danger">Anulează ultima rundă</button>');
+        html.push('</div>');
+      }
+    }
+  } else {
+    html.push('<h3 class="muted">Adaugă rundă</h3>');
     html.push('<div class="form-section">');
     html.push(`<div><strong>Runda: </strong> ${RENTZ_ROUNDS.find(r=>r.id===activeGame.selectedRoundType).label}</div>`);
     html.push('<div id="roundInputs"></div></div>');
-    // NV checkbox (scor dublu)
-    html.push('<div style="margin-top:8px"><label style="user-select:none"><input type="checkbox" id="nvCheckbox" checked /> NV (scor dublu)</label></div>');
-    html.push('<div style="display:flex;gap:8px;margin-top:8px">' +
+    html.push('<div class="mt-10"><label style="user-select:none"><input type="checkbox" id="nvCheckbox" checked /> NV (scor dublu)</label></div>');
+    html.push('<div id="roundError" class="error-text" style="display:none;"></div>');
+    html.push('<div class="flex-gap mt-10">' +
               '<button id="addRoundBtn">Adaugă rundă</button>' +
-              '<button id="undoRoundBtn" class="small" style="visibility: hidden;">Anulează ultima rundă</button>' +
-              '<button id="cancelRoundBtn" class="small">Renunță la rundă</button></div>');
+              '<button id="undoRoundBtn" class="small" style="display:none;">Anulează ultima rundă</button>' +
+              '<button id="cancelRoundBtn" class="small secondary">Renunță</button></div>');
   }
 
-  html.push('</div>');
   activeGameEl.innerHTML = html.join('');
 
   if(activeGame.selectedRoundType){
@@ -293,15 +591,13 @@ function renderActiveGame(){
   // Add event listeners
   if(!activeGame.selectedRoundType){
     activeGameEl.querySelectorAll('.roundChoice').forEach(btn=>{
-      // folosește currentTarget/btn pentru a te asigura că obții atributul corect
       btn.addEventListener('click', function(e){
         const chosenType = e.currentTarget.getAttribute('data-round') || btn.getAttribute('data-round');
-        if(!chosenType) return; // protecție
+        if(!chosenType) return;
         selectRoundType(chosenType);
       });
     });
-  }
-  else {
+  } else {
     document.getElementById('addRoundBtn').addEventListener('click', addRound);
     document.getElementById('undoRoundBtn').addEventListener('click', undoRound);
     document.getElementById('cancelRoundBtn').addEventListener('click', () => {
@@ -336,7 +632,7 @@ function renderActiveGame(){
 
 // ==================== ADD ROUND ====================
 function addRound(){
-  if(!activeGame.selectedRoundType) return alert('Selectează un tip de rundă înainte de a continua.');
+  if(!activeGame.selectedRoundType) return showError('roundError', 'Selectează un tip de rundă înainte de a continua.');
   const round = { id: uid('r'), values: {} };
   // store which player initiated this round so undo can restore availability correctly
   try{ round.playerId = activeGame.players[activeGame.currentPlayerIndex].id; }catch(e){ round.playerId = undefined; }
@@ -361,20 +657,19 @@ function addRound(){
     });
     const invalid = vals.some(v => v > maxDame);
     if(invalid){
-       alert(`Număr maxim permis pentru dame este ${maxDame}.`);
-       return;
+       return showError('roundError', `Număr maxim permis pentru dame este ${maxDame}.`);
     }
     // verifică suma totală de dame
     const totalDame = vals.reduce((a,b)=>a+b,0);
     const requiredDame = 4 * decks;
     if(totalDame !== requiredDame){
-      alert(`Totalul dame trebuie să fie ${requiredDame} (pachete: ${decks}).`);
-      return;
+      return showError('roundError', `Totalul dame trebuie să fie ${requiredDame} (pachete: ${decks}).`);
     }
     activeGame.players.forEach((p, idx)=>{
       const val = vals[idx];
       const pts = (-25 * val) * nvMultiplier;
       p.score += pts;
+      p.lastDelta = pts;
       round.values[p.id] = pts;
     });
   } else if(type==='romburi'){
@@ -383,13 +678,13 @@ function addRound(){
     }, 0);
     const requiredRomburi = activeGame.players.length * 2 * decks;
     if(totalRomburi !== requiredRomburi){
-      alert(`Totalul romburilor trebuie să fie ${requiredRomburi} (pachete: ${decks}).`);
-      return;
+      return showError('roundError', `Totalul romburilor trebuie să fie ${requiredRomburi} (pachete: ${decks}).`);
     }
     activeGame.players.forEach(p=>{
       const val = parseInt(container.querySelector(`[data-input="${p.id}"]`).value||0,10);
       const pts = (-20 * val) * nvMultiplier;
       p.score += pts;
+      p.lastDelta = pts;
       round.values[p.id] = pts;
     });
   } else if(type==='totplus' || type==='totminus'){
@@ -408,10 +703,12 @@ function addRound(){
     const requiredMaini = 8 * decks;
 
     if(totalRomburi !== requiredRomburi || totalDame !== requiredDame || totalMaini !== requiredMaini){
-      alert(`Sume exacte necesare: Romburi: ${requiredRomburi} (pachete: ${decks}), Dame: ${requiredDame}, Maini: ${requiredMaini}.`);
-        return;
+        return showError('roundError', `Sume exacte necesare: Romburi: ${requiredRomburi} (pachete: ${decks}), Dame: ${requiredDame}, Maini: ${requiredMaini}.`);
     }
     const selectedPopa = container.querySelector('input[name="popa_tot"]:checked');
+    if(!selectedPopa){
+      return showError('roundError', 'Selectează jucătorul care a luat Popa.');
+    }
 
     activeGame.players.forEach(p=>{
         let total = 0;
@@ -426,18 +723,19 @@ function addRound(){
         if(type==='totminus') total = -total;
         const pts = total * nvMultiplier;
         p.score += pts;
+        p.lastDelta = pts;
         round.values[p.id] = pts;
     });
   } else if(type==='popa'){
     const popaChecked = container.querySelectorAll('input[name="popa"]:checked');
     if(popaChecked.length !== 1){
-      alert("Trebuie să selectezi exact un jucător pentru popa.");
-      return;
+      return showError('roundError', "Trebuie să selectezi exact un jucător pentru popa.");
     }
     const pid = popaChecked[0].value; 
     const player = activeGame.players.find(x=>x.id===pid);
     const pts = -100 * nvMultiplier;
     player.score += pts;
+    player.lastDelta = pts;
     round.values[pid] = pts;
   } else if(type==='rentz'){
     const n = activeGame.players.length;
@@ -454,14 +752,14 @@ function addRound(){
     // Verifică dacă toate locurile sunt unice
     const uniqueLocs = new Set(usedLocs.filter(l => !isNaN(l)));
     if (!allOk || uniqueLocs.size !== n) {
-      alert("Toți jucătorii trebuie să aibă un loc unic, completat corect (de la 1 la " + n + ")!");
-      return;
+      return showError('roundError', "Toți jucătorii trebuie să aibă un loc unic, completat corect (de la 1 la " + n + ")!");
     }
     // Calculează scorurile
     activeGame.players.forEach(p=>{
       const loc = parseInt(container.querySelector(`[data-input="rentz_${p.id}"]`).value,10);
       const pts = ((n - loc) * 100) * nvMultiplier;
       p.score += pts;
+      p.lastDelta = pts;
       round.values[p.id] = pts;
     });
   }
@@ -476,8 +774,9 @@ function addRound(){
 
 // ==================== UNDO ROUND ====================
 function undoRound(){
+  if(!activeGame) return;
   if(activeGame.rounds.length === 0)
-    return alert('Nicio rundă de anulat');
+    return showError('roundError', 'Nicio rundă de anulat');
   
   const last = activeGame.rounds.pop();
   activeGame.players.forEach(p => {
@@ -486,7 +785,6 @@ function undoRound(){
     }
   });
   if(last.type){
-    // restore availability for the player who initiated the round (if known)
     if(last.playerId){
       const pl = activeGame.players.find(p=>p.id===last.playerId);
       if(pl && pl.available && pl.available.hasOwnProperty(last.type)){
@@ -529,9 +827,7 @@ function undoRound(){
 
 // ==================== SAVE/UPDATE GAME ====================
 function saveOrUpdateGame(g){
-  const idx = games.findIndex(x=>x.id===g.id);
-  if(idx>=0) games[idx]=g; else games.push(g);
-  save(KEY_GAMES, games);
+  persistGame(g);
 }
 
 // ==================== HISTORY ====================
@@ -563,29 +859,33 @@ function renderHistory(){
     const id=e.target.getAttribute('data-export'); const g=games.find(x=>x.id===id); downloadJSON(g, `game_${g.id}.json`);
   }));
   historyEl.querySelectorAll('[data-delgame]').forEach(b=>b.addEventListener('click', e=>{
-    const id=e.target.getAttribute('data-delgame'); if(!confirm('Ștergi jocul?')) return;
-    games=games.filter(x=>x.id!==id); save(KEY_GAMES,games); if(activeGame&&activeGame.id===id) activeGame=null; renderHistory(); renderActiveGame();
+    const id=e.target.getAttribute('data-delgame'); 
+    customConfirm('Ștergi jocul?', (yes) => {
+      if(!yes) return;
+      games = normalizeGamesList(load(KEY_GAMES, [])).filter(x=>x.id!==id);
+      save(KEY_GAMES,games); if(activeGame&&activeGame.id===id) activeGame=null; renderHistory(); renderActiveGame();
+    });
   }));
 }
 
 // ==================== EXPORT / IMPORT ====================
 exportBtn.addEventListener('click', ()=>{ downloadJSON({players,games}, 'card_app_dump.json'); });
 importBtn.addEventListener('click', ()=>{
-  const txt = prompt('Lipește JSON exportat');
-  try{
-    const obj=JSON.parse(txt);
-    if(obj.players && Array.isArray(obj.players)){
-      // normalize players list (keep id+name)
-      players = obj.players.map(p => ({ id: p.id || uid('p'), name: p.name || 'Unknown' }));
-    }
-    if(obj.games && Array.isArray(obj.games)){
-      // normalize imported games so availability & rounds are sane
-      games = normalizeGamesList(obj.games);
-    }
-    save(KEY_PLAYERS, players); save(KEY_GAMES, games);
-    renderPlayers(); renderPlayersCheckboxes(); renderHistory(); renderActiveGame();
-    alert('Import OK');
-  }catch(e){ alert('JSON invalid'); }
+  customPrompt('Lipește JSON exportat', '', (txt) => {
+    if(!txt) return;
+    try{
+      const obj=JSON.parse(txt);
+      if(obj.players && Array.isArray(obj.players)){
+        players = obj.players.map(p => ({ id: p.id || uid('p'), name: p.name || 'Unknown' }));
+      }
+      if(obj.games && Array.isArray(obj.games)){
+        games = normalizeGamesList(obj.games);
+      }
+      save(KEY_PLAYERS, players); save(KEY_GAMES, games);
+      renderPlayers(); renderPlayersCheckboxes(); renderHistory(); renderActiveGame();
+      showError('playerNameError', 'Import OK');
+    }catch(e){ showError('playerNameError', 'JSON invalid'); }
+  });
 });
 
 // ==================== INIT ====================
@@ -595,7 +895,7 @@ function selectRoundType(chosenType){
   if(!chosenType) return;
    const currPlayer = activeGame.players[activeGame.currentPlayerIndex];
   const have = currPlayer && currPlayer.available && (Number(currPlayer.available[chosenType]) || 0);
-  if(!currPlayer || have <= 0) return alert('Nu ai suficiente runde disponibile pentru acest tip.');
+  if(!currPlayer || have <= 0) return showError('roundError', 'Nu ai suficiente runde disponibile pentru acest tip.');
   // consumă o unitate din disponibilitate (dacă sunt mai multe pachete, vor rămâne)
   currPlayer.available[chosenType] = Math.max(0, have - 1);
    activeGame.selectedRoundType = chosenType;
@@ -607,36 +907,43 @@ function renderRentzRoundForm(selectedType){
   const container = activeGameEl.querySelector('#roundInputs');
   const playersMap = getPlayersMap();
   container.innerHTML='';
+  container.style.display = 'grid';
+  container.style.gridTemplateColumns = 'repeat(auto-fit, minmax(150px, 1fr))';
+  container.style.gap = '10px';
+  
   if(selectedType==='dame' || selectedType==='romburi'){
     activeGame.players.forEach(p=>{
-      container.innerHTML+=`<label>${playersMap[p.id].name}</label><input type="number" data-input="${p.id}" value="0"/>`;
+      container.innerHTML+=`<div class="player-input" style="margin-bottom:0;"><label>${playersMap[p.id].name}</label><input type="number" data-input="${p.id}" value="0"/></div>`;
     });
   } else if(selectedType==='popa'){
     activeGame.players.forEach(p=>{
-      container.innerHTML+=`<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+      container.innerHTML+=`<div class="player-input" style="margin-bottom:0; display:flex;align-items:center;gap:6px;">
         <input type="radio" name="popa" value="${p.id}" id="popa_${p.id}"/>
-        <label for="popa_${p.id}">${playersMap[p.id].name}</label>
+        <label for="popa_${p.id}" style="margin:0;">${playersMap[p.id].name}</label>
       </div>`;
     });
   } else if(selectedType==='totplus' || selectedType==='totminus'){
+    container.style.gridTemplateColumns = 'repeat(auto-fit, minmax(250px, 1fr))';
     activeGame.players.forEach(p=>{
-      container.innerHTML += `<div style="margin-bottom:6px">
-        <label>${playersMap[p.id].name}</label><br>
-        Romburi:<input type="number" data-input="romburi_${p.id}" value="" style="width:50px"/>
-        Maini:<input type="number" data-input="maini_${p.id}" value="" style="width:50px"/>
-        Dame:<input type="number" data-input="dame_${p.id}" value="" style="width:50px"/>
-        Popa:<input type="radio" name="popa_tot" data-input="popa_${p.id}" value="${p.id}" id="popa_${p.id}"/>
-        </div>`;
+      container.innerHTML += `<div class="player-input" style="margin-bottom:0;">
+        <label>${playersMap[p.id].name}</label>
+        <div class="flex-gap align-center" style="flex-wrap:wrap; margin-top:8px;">
+          <input type="number" data-input="romburi_${p.id}" placeholder="Romburi" style="width:70px; margin:0;"/>
+          <input type="number" data-input="maini_${p.id}" placeholder="Mâini" style="width:70px; margin:0;"/>
+          <input type="number" data-input="dame_${p.id}" placeholder="Dame" style="width:70px; margin:0;"/>
+          <label style="margin:0; display:flex; align-items:center; gap:4px;"><input type="radio" name="popa_tot" data-input="popa_${p.id}" value="${p.id}" id="popa_${p.id}"/> Popa</label>
+        </div>
+      </div>`;
     });
   } else if(selectedType==='rentz'){
-  activeGame.players.forEach(p=>{
-    container.innerHTML+=`<div style="margin-bottom:6px"><label>${playersMap[p.id].name}</label>
-      <select data-input="rentz_${p.id}">
-        <option value="">Selectează locul</option>
-        ${activeGame.players.map((_,idx)=>`<option value="${idx+1}">Loc ${idx+1}</option>`).join('')}
-      </select></div>`;
-  });
-}
+    activeGame.players.forEach(p=>{
+      container.innerHTML+=`<div class="player-input" style="margin-bottom:0;"><label>${playersMap[p.id].name}</label>
+        <select data-input="rentz_${p.id}">
+          <option value="">Selectează locul</option>
+          ${activeGame.players.map((_,idx)=>`<option value="${idx+1}">Loc ${idx+1}</option>`).join('')}
+        </select></div>`;
+    });
+  }
 }
 
 // Clean up games in localStorage (safe)
@@ -650,3 +957,11 @@ try{
   // ignore malformed storage
 }
 
+// ==================== SINCRONIZARE ÎNTRE FILE ====================
+// Dacă altă filă (Rentz sau Whist) schimbă jucătorii sau jocurile, reîmprospătăm
+// starea locală, ca să nu lucrăm pe o copie învechită și să o scriem peste.
+window.addEventListener('storage', e => {
+  if(e.key !== KEY_PLAYERS && e.key !== KEY_GAMES) return;
+  reloadFromStorage();
+  renderPlayers(); renderPlayersCheckboxes(); renderHistory(); renderActiveGame();
+});
